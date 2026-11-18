@@ -1,4 +1,4 @@
-package com.kafkalite.protocal.error;
+package com.kafkalite.protocol.error;
 
 public enum ErrorCode {
   NONE((short) 0),
