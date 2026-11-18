@@ -93,9 +93,3 @@ Before considering a change complete, agents MUST:
 2. Run `broker-e2e-tests` whenever changes touch `broker-protocol`, `storage/`, `group/`, `network/`, or `lifecycle/`.
 3. Verify Docker build and container restart recovery (`scripts/docker-crash-test.sh`) whenever changes touch lifecycle, config/env loading, storage paths, or Dockerfiles.
 4. Confirm no new dependencies violate Section 1 (Non-Goals) or Section 3 (Boundaries).
-
-*(Update exact Gradle/Maven commands below once build files are scaffolded):*
-
-- **Build & unit test:** `<build-tool> test`
-- **Full verification (incl. E2E & architecture checks):** `<build-tool> check`
-- **Docker build & smoke test:** `docker compose up --build -d && ./scripts/docker-crash-test.sh`
