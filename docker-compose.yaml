@@ -1,0 +1,25 @@
+services:
+    broker:
+        build:
+          context: .
+          dockerfile: Dockerfile
+        container_name: kafkalite-broker
+        ports:
+          - "9092:9092"
+        environment:
+          BROKER_HOST: 0.0.0.0
+          BROKER_PORT: 9092
+          DATA_DIR: /data
+          FLUSH_POLICY: EVERY_WRITE
+        volumes:
+          - kafkalite_data:/data
+        healthcheck:
+          test: [ "CMD", "java", "-cp", "/app/kafkalite-broker.jar", "com.kafkalite.core.lifecycle.HealthCheck" ]
+          interval: 5s
+          timeout: 3s
+          retries: 5
+          start_period: 10s
+        stop_grace_period: 15s
+
+volumes:
+  kafkalite_data:
