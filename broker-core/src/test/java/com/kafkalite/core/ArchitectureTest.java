@@ -6,6 +6,7 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+import com.tngtech.archunit.library.GeneralCodingRules;
 
 @AnalyzeClasses(packages = "com.kafkalite", importOptions = ImportOption.DoNotIncludeTests.class)
 public class ArchitectureTest {
@@ -33,8 +34,6 @@ public class ArchitectureTest {
       noClasses()
           .that()
           .resideOutsideOfPackage("..lifecycle..")
-          .should()
-          .accessClassesThat()
-          .haveFullyQualifiedName(System.class.getName())
+          .should(GeneralCodingRules.ACCESS_STANDARD_STREAMS)
           .because("Use SLF4J logging instead of System.out/err in broker internals");
 }
