@@ -1,11 +1,13 @@
 package com.kafkalite.core;
 
 import com.kafkalite.core.config.BrokerConfig;
+import com.kafkalite.core.topic.TopicManager;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Clock;
 import java.util.concurrent.CountDownLatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +23,7 @@ public class BrokerApplication {
     BrokerConfig config = BrokerConfig.load(configPath);
     Files.createDirectories(config.dataDir());
 
+    TopicManager topicManager = TopicManager.open(config, Clock.systemUTC());
     CountDownLatch shutdownLatch = new CountDownLatch(1);
     ServerSocket placeholderSocket = new ServerSocket();
     placeholderSocket.setReuseAddress(true);
@@ -45,7 +48,8 @@ public class BrokerApplication {
         config.host(),
         config.port(),
         config.dataDir(),
-        config.flushPolicy());
+        config.flushPolicy(),
+        topicManager.listTopics().size());
 
     shutdownLatch.await();
     log.info("Kafkalite broker stopped cleanly.");
