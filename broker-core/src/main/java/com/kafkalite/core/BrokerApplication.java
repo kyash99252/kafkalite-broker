@@ -1,10 +1,9 @@
 package com.kafkalite.core;
 
 import com.kafkalite.core.config.BrokerConfig;
+import com.kafkalite.core.network.BrokerServer;
 import com.kafkalite.core.topic.TopicManager;
 import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -24,20 +23,24 @@ public class BrokerApplication {
     Files.createDirectories(config.dataDir());
 
     TopicManager topicManager = TopicManager.open(config, Clock.systemUTC());
-    CountDownLatch shutdownLatch = new CountDownLatch(1);
-    ServerSocket placeholderSocket = new ServerSocket();
-    placeholderSocket.setReuseAddress(true);
-    placeholderSocket.bind(new InetSocketAddress(config.host(), config.port()));
+    BrokerServer server = new BrokerServer(config, topicManager);
+    server.start();
 
+    CountDownLatch shutdownLatch = new CountDownLatch(1);
     Runtime.getRuntime()
         .addShutdownHook(
             new Thread(
                 () -> {
                   log.info("Shutdown signal received; flushing state and stopping broker...");
                   try {
-                    placeholderSocket.close();
+                    server.close();
                   } catch (IOException e) {
                     log.warn("Error closing broker socket during shutdown", e);
+                  }
+                  try {
+                    topicManager.close();
+                  } catch (IOException e) {
+                    log.warn("Error closing TopicManager during shutdown", e);
                   } finally {
                     shutdownLatch.countDown();
                   }
@@ -46,7 +49,7 @@ public class BrokerApplication {
     log.info(
         "Kafkalite broker initialized on {}:{} (dataDir={}, flushPolicy={})",
         config.host(),
-        config.port(),
+        server.boundPort(),
         config.dataDir(),
         config.flushPolicy(),
         topicManager.listTopics().size());
