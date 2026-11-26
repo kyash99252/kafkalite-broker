@@ -119,7 +119,6 @@ public final class WireCodec {
           frame.writeLong(r.offset());
           frame.writeLong(r.timestamp());
           writeBytes(frame, r.key());
-          writeBytes(frame, r.key());
           writeBytes(frame, r.payload());
         }
       }

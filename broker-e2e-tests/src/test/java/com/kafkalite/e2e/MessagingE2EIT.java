@@ -1,5 +1,8 @@
 package com.kafkalite.e2e;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import com.kafkalite.client.admin.AdminClient;
 import com.kafkalite.client.consumer.KafkaLiteConsumer;
 import com.kafkalite.client.consumer.KafkaLiteConsumer.FetchResult;
@@ -15,10 +18,6 @@ import com.kafkalite.protocol.exception.BrokerException;
 import com.kafkalite.protocol.model.Record;
 import com.kafkalite.protocol.model.Response.TopicInfo;
 import com.kafkalite.protocol.model.TopicPartition;
-import org.junit.jupiter.api.Tag;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -26,9 +25,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class MessagingE2EIT {
   @TempDir Path tempDir;
