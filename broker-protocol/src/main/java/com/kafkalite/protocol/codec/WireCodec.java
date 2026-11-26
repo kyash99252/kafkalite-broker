@@ -4,6 +4,7 @@ import com.kafkalite.protocol.error.ErrorCode;
 import com.kafkalite.protocol.model.Record;
 import com.kafkalite.protocol.model.Request;
 import com.kafkalite.protocol.model.Response;
+import com.kafkalite.protocol.model.TopicPartition;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -20,6 +21,11 @@ public final class WireCodec {
   private static final byte OP_LIST_TOPICS = 3;
   private static final byte OP_PRODUCE = 4;
   private static final byte OP_FETCH = 5;
+  private static final byte OP_JOIN_GROUP = 6;
+  private static final byte OP_HEARTBEAT = 7;
+  private static final byte OP_LEAVE_GROUP = 8;
+  private static final byte OP_COMMIT_OFFSET = 9;
+  private static final byte OP_FETCH_OFFSET = 10;
 
   private static final byte OP_ERROR = 100;
   private static final byte OP_TOPIC_CREATED = 101;
@@ -27,6 +33,11 @@ public final class WireCodec {
   private static final byte OP_TOPICS_LISTED = 103;
   private static final byte OP_PRODUCED = 104;
   private static final byte OP_FETCHED = 105;
+  private static final byte OP_GROUP_JOINED = 106;
+  private static final byte OP_HEARTBEAT_ACK = 107;
+  private static final byte OP_GROUP_LEFT = 108;
+  private static final byte OP_OFFSET_COMMITTED = 109;
+  private static final byte OP_OFFSET_FETCHED = 110;
 
   /** Associates a decoded message with the request it belongs to. */
   public record Envelope<T>(int correlationId, T payload) {}
@@ -66,6 +77,39 @@ public final class WireCodec {
         frame.writeLong(offset);
         frame.writeInt(maxRecords);
         frame.writeInt(maxBytes);
+      }
+      case Request.JoinGroup(var groupId, var memberId, var topics) -> {
+        frame.writeByte(OP_JOIN_GROUP);
+        writeString(frame, groupId);
+        writeString(frame, memberId);
+        frame.writeInt(topics.size());
+        for (String t : topics) {
+          writeString(frame, t);
+        }
+      }
+      case Request.Heartbeat(var groupId, var memberId, var generationId) -> {
+        frame.writeByte(OP_HEARTBEAT);
+        writeString(frame, groupId);
+        writeString(frame, memberId);
+        frame.writeInt(generationId);
+      }
+      case Request.LeaveGroup(var groupId, var memberId) -> {
+        frame.writeByte(OP_LEAVE_GROUP);
+        writeString(frame, groupId);
+        writeString(frame, memberId);
+      }
+      case Request.CommitOffset(var groupId, var tp, var offset) -> {
+        frame.writeByte(OP_COMMIT_OFFSET);
+        writeString(frame, groupId);
+        writeString(frame, tp.topic());
+        frame.writeInt(tp.partition());
+        frame.writeLong(offset);
+      }
+      case Request.FetchOffset(var groupId, var tp) -> {
+        frame.writeByte(OP_FETCH_OFFSET);
+        writeString(frame, groupId);
+        writeString(frame, tp.topic());
+        frame.writeInt(tp.partition());
       }
     }
     sendFrame(out, baos.toByteArray());
@@ -122,6 +166,37 @@ public final class WireCodec {
           writeBytes(frame, r.payload());
         }
       }
+      case Response.GroupJoined(var groupId, var memberId, var genId, var assignment) -> {
+        frame.writeByte(OP_GROUP_JOINED);
+        writeString(frame, groupId);
+        writeString(frame, memberId);
+        frame.writeInt(genId);
+        writeTopicPartitions(frame, assignment);
+      }
+      case Response.HeartbeatAck(var genId, var assignment) -> {
+        frame.writeByte(OP_HEARTBEAT_ACK);
+        frame.writeInt(genId);
+        writeTopicPartitions(frame, assignment);
+      }
+      case Response.GroupLeft(var groupId, var memberId) -> {
+        frame.writeByte(OP_GROUP_LEFT);
+        writeString(frame, groupId);
+        writeString(frame, memberId);
+      }
+      case Response.OffsetCommitted(var groupId, var tp, var offset) -> {
+        frame.writeByte(OP_OFFSET_COMMITTED);
+        writeString(frame, groupId);
+        writeString(frame, tp.topic());
+        frame.writeInt(tp.partition());
+        frame.writeLong(offset);
+      }
+      case Response.OffsetFetched(var groupId, var tp, var offset) -> {
+        frame.writeByte(OP_OFFSET_FETCHED);
+        writeString(frame, groupId);
+        writeString(frame, tp.topic());
+        frame.writeInt(tp.partition());
+        frame.writeLong(offset);
+      }
     }
     sendFrame(out, baos.toByteArray());
   }
@@ -143,6 +218,18 @@ public final class WireCodec {
           case OP_FETCH ->
               new Request.Fetch(
                   readString(buf), buf.getInt(), buf.getLong(), buf.getInt(), buf.getInt());
+          case OP_JOIN_GROUP -> readJoinGroup(buf);
+          case OP_HEARTBEAT ->
+              new Request.Heartbeat(readString(buf), readString(buf), buf.getInt());
+          case OP_LEAVE_GROUP -> new Request.LeaveGroup(readString(buf), readString(buf));
+          case OP_COMMIT_OFFSET ->
+              new Request.CommitOffset(
+                  readString(buf),
+                  new TopicPartition(readString(buf), buf.getInt()),
+                  buf.getLong());
+          case OP_FETCH_OFFSET ->
+              new Request.FetchOffset(
+                  readString(buf), new TopicPartition(readString(buf), buf.getInt()));
           default -> throw new IllegalArgumentException("Unknown request opcode: " + op);
         };
     ensureFullyConsumed(buf);
@@ -166,6 +253,22 @@ public final class WireCodec {
           case OP_TOPICS_LISTED -> readTopicsListed(buf);
           case OP_PRODUCED -> readProduced(buf);
           case OP_FETCHED -> readFetched(buf);
+          case OP_GROUP_JOINED ->
+              new Response.GroupJoined(
+                  readString(buf), readString(buf), buf.getInt(), readTopicPartitions(buf));
+          case OP_HEARTBEAT_ACK ->
+              new Response.HeartbeatAck(buf.getInt(), readTopicPartitions(buf));
+          case OP_GROUP_LEFT -> new Response.GroupLeft(readString(buf), readString(buf));
+          case OP_OFFSET_COMMITTED ->
+              new Response.OffsetCommitted(
+                  readString(buf),
+                  new TopicPartition(readString(buf), buf.getInt()),
+                  buf.getLong());
+          case OP_OFFSET_FETCHED ->
+              new Response.OffsetFetched(
+                  readString(buf),
+                  new TopicPartition(readString(buf), buf.getInt()),
+                  buf.getLong());
           default -> throw new IllegalArgumentException("Unknown response opcode: " + op);
         };
     ensureFullyConsumed(buf);
@@ -190,6 +293,24 @@ public final class WireCodec {
     return new Request.Produce(topic, partition, entries);
   }
 
+  private static void writeTopicPartitions(DataOutputStream out, List<TopicPartition> list)
+      throws IOException {
+    out.writeInt(list.size());
+    for (TopicPartition tp : list) {
+      writeString(out, tp.topic());
+      out.writeInt(tp.partition());
+    }
+  }
+
+  private static List<TopicPartition> readTopicPartitions(ByteBuffer buf) {
+    int count = readValidCount(buf);
+    List<TopicPartition> list = new ArrayList<>(count);
+    for (int i = 0; i < count; i++) {
+      list.add(new TopicPartition(readString(buf), buf.getInt()));
+    }
+    return list;
+  }
+
   private static Response.TopicsListed readTopicsListed(ByteBuffer buf) {
     int count = readValidCount(buf);
     List<Response.TopicInfo> list = new ArrayList<>(count);
@@ -207,6 +328,17 @@ public final class WireCodec {
       offsets.add(new Response.ProducedOffset(buf.getInt(), buf.getLong(), buf.getLong()));
     }
     return new Response.Produced(topic, offsets);
+  }
+
+  private static Request.JoinGroup readJoinGroup(ByteBuffer buf) {
+    String groupId = readString(buf);
+    String memberId = readString(buf);
+    int count = readValidCount(buf);
+    List<String> topics = new ArrayList<>(count);
+    for (int i = 0; i < count; i++) {
+      topics.add(readString(buf));
+    }
+    return new Request.JoinGroup(groupId, memberId, topics);
   }
 
   private static Response.Fetched readFetched(ByteBuffer buf) {

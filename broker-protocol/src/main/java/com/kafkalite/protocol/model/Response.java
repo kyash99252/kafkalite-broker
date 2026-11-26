@@ -9,7 +9,12 @@ public sealed interface Response
         Response.TopicDescribed,
         Response.TopicsListed,
         Response.Produced,
-        Response.Fetched {
+        Response.Fetched,
+        Response.GroupJoined,
+        Response.HeartbeatAck,
+        Response.GroupLeft,
+        Response.OffsetCommitted,
+        Response.OffsetFetched {
   record ErrorResponse(ErrorCode errorCode, String message) implements Response {}
 
   record TopicInfo(String name, int partitionCount, List<Long> endOffsets) {}
@@ -25,5 +30,20 @@ public sealed interface Response
   record Produced(String topic, List<ProducedOffset> offsets) implements Response {}
 
   record Fetched(String topic, int partition, long highWatermark, List<Record> records)
+      implements Response {}
+
+  record GroupJoined(
+      String groupId, String memberId, int generationId, List<TopicPartition> assignment)
+      implements Response {}
+
+  record HeartbeatAck(int generationId, List<TopicPartition> assignment) implements Response {}
+
+  record GroupLeft(String groupId, String memberId) implements Response {}
+
+  record OffsetCommitted(String groupId, TopicPartition topicPartition, long offset)
+      implements Response {}
+
+  /** committedOffset is -1 when no offset has been committed yet. */
+  record OffsetFetched(String groupId, TopicPartition topicPartition, long committedOffset)
       implements Response {}
 }
