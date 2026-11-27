@@ -5,9 +5,6 @@ import com.kafkalite.core.storage.PartitionLog;
 import com.kafkalite.protocol.error.ErrorCode;
 import com.kafkalite.protocol.exception.BrokerException;
 import com.kafkalite.protocol.model.Record;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -28,6 +25,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class TopicManager implements Closeable {
   private static final Logger log = LoggerFactory.getLogger(TopicManager.class);
@@ -58,13 +57,12 @@ public final class TopicManager implements Closeable {
   private long recoveryDurationMs;
 
   public record StorageStats(
-          int topicCount,
-          int totalPartitions,
-          long totalSegments,
-          long totalStorageBytes,
-          long recoveryDurationMs,
-          long truncatedBytesOnRecovery
-  ) {}
+      int topicCount,
+      int totalPartitions,
+      long totalSegments,
+      long totalStorageBytes,
+      long recoveryDurationMs,
+      long truncatedBytesOnRecovery) {}
 
   public StorageStats storageStats() {
     int topicCount = topics.size();
@@ -81,7 +79,7 @@ public final class TopicManager implements Closeable {
       }
     }
     return new StorageStats(
-            topicCount, totalPartitions, totalSegments, totalBytes, recoveryDurationMs, truncated);
+        topicCount, totalPartitions, totalSegments, totalBytes, recoveryDurationMs, truncated);
   }
 
   private TopicManager(BrokerConfig config, Clock clock) {

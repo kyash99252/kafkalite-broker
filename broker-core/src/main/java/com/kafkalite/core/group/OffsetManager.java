@@ -3,9 +3,6 @@ package com.kafkalite.core.group;
 import com.kafkalite.protocol.error.ErrorCode;
 import com.kafkalite.protocol.exception.BrokerException;
 import com.kafkalite.protocol.model.TopicPartition;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -19,6 +16,8 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Durable, thread-safe consumer offset store backed by a single flat metadata file. Reads are

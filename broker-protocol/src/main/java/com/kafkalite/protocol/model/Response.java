@@ -49,21 +49,19 @@ public sealed interface Response
       implements Response {}
 
   record ParitionLag(
-          String topic, int partition, long highWatermark, long committedOffset, long lag
-  ) {}
+      String topic, int partition, long highWatermark, long committedOffset, long lag) {}
 
   record GroupStatusInfo(
-          String groupId, int generationId, int memberCount, List<ParitionLag> partitions
-  ) {}
+      String groupId, int generationId, int memberCount, List<ParitionLag> partitions) {}
 
   record BrokerStatus(
-          long uptimeMs,
-          int topicCount,
-          int totalPartitions,
-          long totalSegments,
-          long totalStorageBytes,
-          long recoveryDurationMs,
-          long truncatedBytesOnRecovery,
-          List<GroupStatusInfo> groups
-  ) implements Response {}
+      long uptimeMs,
+      int topicCount,
+      int totalPartitions,
+      long totalSegments,
+      long totalStorageBytes,
+      long recoveryDurationMs,
+      long truncatedBytesOnRecovery,
+      List<GroupStatusInfo> groups)
+      implements Response {}
 }

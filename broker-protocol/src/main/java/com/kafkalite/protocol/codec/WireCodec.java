@@ -208,8 +208,7 @@ public final class WireCodec {
               var totalStorageBytes,
               var recoveryMs,
               var truncatedBytes,
-              var groups
-       ) -> {
+              var groups) -> {
         frame.writeByte(OP_BROKER_STATUS_RESP);
         frame.writeLong(uptimeMs);
         frame.writeInt(topicCount);
@@ -530,23 +529,19 @@ public final class WireCodec {
       List<Response.ParitionLag> lags = new ArrayList<>(partCount);
       for (int j = 0; j < partCount; j++) {
         lags.add(
-                new Response.ParitionLag(
-                        readString(buf),
-                        buf.getInt(),
-                        buf.getLong(),
-                        buf.getLong(),
-                        buf.getLong()));
+            new Response.ParitionLag(
+                readString(buf), buf.getInt(), buf.getLong(), buf.getLong(), buf.getLong()));
       }
       groups.add(new Response.GroupStatusInfo(groupId, genId, memberCount, lags));
     }
     return new Response.BrokerStatus(
-            uptimeMs,
-            topicCount,
-            totalPartitions,
-            totalSegments,
-            totalStorageBytes,
-            recoveryMs,
-            truncatedBytes,
-            groups);
+        uptimeMs,
+        topicCount,
+        totalPartitions,
+        totalSegments,
+        totalStorageBytes,
+        recoveryMs,
+        truncatedBytes,
+        groups);
   }
 }

@@ -3,9 +3,6 @@ package com.kafkalite.core.storage;
 import com.kafkalite.protocol.codec.RecordCodec;
 import com.kafkalite.protocol.exception.CorruptRecordException;
 import com.kafkalite.protocol.model.Record;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -15,6 +12,8 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class LogSegment implements Closeable {
   private static final Logger log = LoggerFactory.getLogger(LogSegment.class);

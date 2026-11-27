@@ -2,9 +2,6 @@ package com.kafkalite.core.storage;
 
 import com.kafkalite.core.config.BrokerConfig.FlushPolicy;
 import com.kafkalite.protocol.model.Record;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -16,6 +13,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Stream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class PartitionLog implements Closeable {
   private static final Logger log = LoggerFactory.getLogger(PartitionLog.class);
@@ -220,9 +219,9 @@ public final class PartitionLog implements Closeable {
   public long totalSizeBytes() {
     rwLock.readLock().lock();
     try {
-        return segments.values().stream().mapToLong(LogSegment::sizeBytes).sum();
+      return segments.values().stream().mapToLong(LogSegment::sizeBytes).sum();
     } finally {
-        rwLock.readLock().unlock();
+      rwLock.readLock().unlock();
     }
   }
 
@@ -231,7 +230,7 @@ public final class PartitionLog implements Closeable {
     try {
       return segments.values().stream().mapToLong(LogSegment::truncatedBytesOnRecovery).sum();
     } finally {
-        rwLock.readLock().unlock();
+      rwLock.readLock().unlock();
     }
   }
 
