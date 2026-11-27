@@ -1,6 +1,8 @@
 package com.kafkalite.core;
 
 import com.kafkalite.core.config.BrokerConfig;
+import com.kafkalite.core.group.GroupCoordinator;
+import com.kafkalite.core.group.OffsetManager;
 import com.kafkalite.core.network.BrokerServer;
 import com.kafkalite.core.topic.TopicManager;
 import java.io.IOException;
@@ -22,8 +24,12 @@ public class BrokerApplication {
     BrokerConfig config = BrokerConfig.load(configPath);
     Files.createDirectories(config.dataDir());
 
+    Clock clock = Clock.systemUTC();
     TopicManager topicManager = TopicManager.open(config, Clock.systemUTC());
-    BrokerServer server = new BrokerServer(config, topicManager);
+    OffsetManager offsetManager = OffsetManager.open(config.dataDir());
+    GroupCoordinator groupCoordinator =
+        new GroupCoordinator(topicManager, config.sessionTimeoutMs(), clock);
+    BrokerServer server = new BrokerServer(config, topicManager, groupCoordinator, offsetManager);
     server.start();
 
     CountDownLatch shutdownLatch = new CountDownLatch(1);
@@ -35,7 +41,13 @@ public class BrokerApplication {
                   try {
                     server.close();
                   } catch (IOException e) {
-                    log.warn("Error closing broker socket during shutdown", e);
+                    log.warn("Error closing BrokerServer during shutdown", e);
+                  }
+                  groupCoordinator.close();
+                  try {
+                    offsetManager.close();
+                  } catch (IOException e) {
+                    log.warn("Error closing OffsetManager during shutdown", e);
                   }
                   try {
                     topicManager.close();

@@ -4,15 +4,13 @@ import com.kafkalite.core.topic.TopicManager;
 import com.kafkalite.protocol.error.ErrorCode;
 import com.kafkalite.protocol.exception.BrokerException;
 import com.kafkalite.protocol.model.TopicPartition;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.Closeable;
-import java.io.IOException;
 import java.time.Clock;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Broker-side coordinator for consumer group membership, liveness heartbeats, and partition
@@ -307,7 +305,7 @@ public final class GroupCoordinator implements Closeable {
   }
 
   @Override
-  public void close() throws IOException {
+  public void close() {
     running = false;
     reaperThread.interrupt();
     try {
