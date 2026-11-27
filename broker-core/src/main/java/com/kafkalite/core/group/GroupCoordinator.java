@@ -4,13 +4,14 @@ import com.kafkalite.core.topic.TopicManager;
 import com.kafkalite.protocol.error.ErrorCode;
 import com.kafkalite.protocol.exception.BrokerException;
 import com.kafkalite.protocol.model.TopicPartition;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.Closeable;
 import java.time.Clock;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Broker-side coordinator for consumer group membership, liveness heartbeats, and partition
@@ -66,6 +67,33 @@ public final class GroupCoordinator implements Closeable {
   private final Map<String, GroupState> groups = new ConcurrentHashMap<>();
   private final Thread reaperThread;
   private volatile boolean running = true;
+
+  public record GroupSummary(
+          String groupId, int generationId, int memberCount, List<TopicPartition> assignedPartitions
+  ) {}
+
+  public List<GroupSummary> groupSummaries() {
+    List<GroupSummary> list = new ArrayList<>();
+    for (GroupState group : groups.values()) {
+      group.lock.lock();
+      try {
+        List<TopicPartition> assigned = group.members.values().stream()
+                .flatMap(m -> m.assignment.stream())
+                .distinct()
+                .sorted(
+                        Comparator.comparing(TopicPartition::topic)
+                                .thenComparingInt(TopicPartition::partition)
+                ).toList();
+        list.add(new GroupSummary(
+                group.groupId, group.generationId, group.members.size(), assigned
+        ));
+      } finally {
+          group.lock.unlock();
+      }
+    }
+    list.sort(Comparator.comparing(GroupSummary::groupId));;
+    return list;
+  }
 
   public GroupCoordinator(TopicManager topicManager, long sessionTimeoutMs, Clock clock) {
     this.topicManager = Objects.requireNonNull(topicManager, "topicManager must not be null");

@@ -26,6 +26,7 @@ public final class WireCodec {
   private static final byte OP_LEAVE_GROUP = 8;
   private static final byte OP_COMMIT_OFFSET = 9;
   private static final byte OP_FETCH_OFFSET = 10;
+  private static final byte OP_BROKER_STATUS = 11;
 
   private static final byte OP_ERROR = 100;
   private static final byte OP_TOPIC_CREATED = 101;
@@ -38,6 +39,7 @@ public final class WireCodec {
   private static final byte OP_GROUP_LEFT = 108;
   private static final byte OP_OFFSET_COMMITTED = 109;
   private static final byte OP_OFFSET_FETCHED = 110;
+  private static final byte OP_BROKER_STATUS_RESP = 111;
 
   /** Associates a decoded message with the request it belongs to. */
   public record Envelope<T>(int correlationId, T payload) {}
@@ -111,6 +113,7 @@ public final class WireCodec {
         writeString(frame, tp.topic());
         frame.writeInt(tp.partition());
       }
+      case Request.BrokerStatus() -> frame.writeByte(OP_BROKER_STATUS);
     }
     sendFrame(out, baos.toByteArray());
   }
@@ -197,6 +200,38 @@ public final class WireCodec {
         frame.writeInt(tp.partition());
         frame.writeLong(offset);
       }
+      case Response.BrokerStatus(
+              var uptimeMs,
+              var topicCount,
+              var totalPartitions,
+              var totalSegments,
+              var totalStorageBytes,
+              var recoveryMs,
+              var truncatedBytes,
+              var groups
+       ) -> {
+        frame.writeByte(OP_BROKER_STATUS_RESP);
+        frame.writeLong(uptimeMs);
+        frame.writeInt(topicCount);
+        frame.writeInt(totalPartitions);
+        frame.writeLong(totalSegments);
+        frame.writeLong(totalStorageBytes);
+        frame.writeLong(recoveryMs);
+        frame.writeLong(truncatedBytes);
+        frame.writeInt(groups.size());
+        for (Response.GroupStatusInfo g : groups) {
+          writeString(frame, g.groupId());
+          frame.writeInt(g.generationId());
+          frame.writeInt(g.memberCount());
+          frame.writeInt(g.partitions().size());
+          for (Response.ParitionLag p : g.partitions()) {
+            frame.writeInt(p.partition());
+            frame.writeLong(p.highWatermark());
+            frame.writeLong(p.committedOffset());
+            frame.writeLong(p.lag());
+          }
+        }
+      }
     }
     sendFrame(out, baos.toByteArray());
   }
@@ -230,6 +265,7 @@ public final class WireCodec {
           case OP_FETCH_OFFSET ->
               new Request.FetchOffset(
                   readString(buf), new TopicPartition(readString(buf), buf.getInt()));
+          case OP_BROKER_STATUS -> new Request.BrokerStatus();
           default -> throw new IllegalArgumentException("Unknown request opcode: " + op);
         };
     ensureFullyConsumed(buf);
@@ -269,6 +305,7 @@ public final class WireCodec {
                   readString(buf),
                   new TopicPartition(readString(buf), buf.getInt()),
                   buf.getLong());
+          case OP_BROKER_STATUS_RESP -> readBrokerStatus(buf);
           default -> throw new IllegalArgumentException("Unknown response opcode: " + op);
         };
     ensureFullyConsumed(buf);
@@ -473,5 +510,43 @@ public final class WireCodec {
       }
     }
     return ErrorCode.UNKNOWN_ERROR;
+  }
+
+  private static Response.BrokerStatus readBrokerStatus(ByteBuffer buf) {
+    long uptimeMs = buf.getLong();
+    int topicCount = buf.getInt();
+    int totalPartitions = buf.getInt();
+    long totalSegments = buf.getLong();
+    long totalStorageBytes = buf.getLong();
+    long recoveryMs = buf.getLong();
+    long truncatedBytes = buf.getLong();
+    int groupCount = readValidCount(buf);
+    List<Response.GroupStatusInfo> groups = new ArrayList<>(groupCount);
+    for (int i = 0; i < groupCount; i++) {
+      String groupId = readString(buf);
+      int genId = buf.getInt();
+      int memberCount = buf.getInt();
+      int partCount = readValidCount(buf);
+      List<Response.ParitionLag> lags = new ArrayList<>(partCount);
+      for (int j = 0; j < partCount; j++) {
+        lags.add(
+                new Response.ParitionLag(
+                        readString(buf),
+                        buf.getInt(),
+                        buf.getLong(),
+                        buf.getLong(),
+                        buf.getLong()));
+      }
+      groups.add(new Response.GroupStatusInfo(groupId, genId, memberCount, lags));
+    }
+    return new Response.BrokerStatus(
+            uptimeMs,
+            topicCount,
+            totalPartitions,
+            totalSegments,
+            totalStorageBytes,
+            recoveryMs,
+            truncatedBytes,
+            groups);
   }
 }

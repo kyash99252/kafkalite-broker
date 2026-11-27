@@ -3,6 +3,9 @@ package com.kafkalite.core.group;
 import com.kafkalite.protocol.error.ErrorCode;
 import com.kafkalite.protocol.exception.BrokerException;
 import com.kafkalite.protocol.model.TopicPartition;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -12,15 +15,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Pattern;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Durable, thread-safe consumer offset store backed by a single flat metadata file. Reads are
@@ -134,6 +132,10 @@ public final class OffsetManager implements Closeable {
     });
     // Unmodifiable copy prevents callers from mutating the returned snapshot
     return Map.copyOf(result);
+  }
+
+  public List<String> knownGroupIds() {
+    return committedOffsets.keySet().stream().map(OffsetKey::groupId).distinct().sorted().toList();
   }
 
   static void validateGroupId(String groupId) {

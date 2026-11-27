@@ -13,7 +13,8 @@ public sealed interface Request
         Request.Heartbeat,
         Request.LeaveGroup,
         Request.CommitOffset,
-        Request.FetchOffset {
+        Request.FetchOffset,
+        Request.BrokerStatus {
   record CreateTopic(String topic, int partitionCount) implements Request {}
 
   record DescribeTopic(String topic) implements Request {}
@@ -57,4 +58,6 @@ public sealed interface Request
       Objects.requireNonNull(topicPartition, "topicPartition must not be null");
     }
   }
+
+  record BrokerStatus() implements Request {}
 }

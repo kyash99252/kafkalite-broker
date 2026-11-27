@@ -3,6 +3,9 @@ package com.kafkalite.core.storage;
 import com.kafkalite.protocol.codec.RecordCodec;
 import com.kafkalite.protocol.exception.CorruptRecordException;
 import com.kafkalite.protocol.model.Record;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -12,8 +15,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public final class LogSegment implements Closeable {
   private static final Logger log = LoggerFactory.getLogger(LogSegment.class);
@@ -32,6 +33,7 @@ public final class LogSegment implements Closeable {
   private volatile long currentSizeBytes;
   private long bytesSinceLastIndex;
   private long nextOffset;
+  private long truncatedBytesOnRecovery;
 
   private LogSegment(
       long baseOffset,
@@ -128,11 +130,12 @@ public final class LogSegment implements Closeable {
     }
 
     if (pos < fileSize) {
+      truncatedBytesOnRecovery = fileSize - pos;
       log.warn(
           "Recovered {} up to {} bytes; truncated {} trailing bytes",
           logPath.getFileName(),
           pos,
-          fileSize - pos);
+          truncatedBytesOnRecovery);
       logChannel.truncate(pos);
     }
 
@@ -266,6 +269,10 @@ public final class LogSegment implements Closeable {
       }
       currentPos += read;
     }
+  }
+
+  public long truncatedBytesOnRecovery() {
+    return truncatedBytesOnRecovery;
   }
 
   @Override

@@ -14,7 +14,8 @@ public sealed interface Response
         Response.HeartbeatAck,
         Response.GroupLeft,
         Response.OffsetCommitted,
-        Response.OffsetFetched {
+        Response.OffsetFetched,
+        Response.BrokerStatus {
   record ErrorResponse(ErrorCode errorCode, String message) implements Response {}
 
   record TopicInfo(String name, int partitionCount, List<Long> endOffsets) {}
@@ -46,4 +47,23 @@ public sealed interface Response
   /** committedOffset is -1 when no offset has been committed yet. */
   record OffsetFetched(String groupId, TopicPartition topicPartition, long committedOffset)
       implements Response {}
+
+  record ParitionLag(
+          String topic, int partition, long highWatermark, long committedOffset, long lag
+  ) {}
+
+  record GroupStatusInfo(
+          String groupId, int generationId, int memberCount, List<ParitionLag> partitions
+  ) {}
+
+  record BrokerStatus(
+          long uptimeMs,
+          int topicCount,
+          int totalPartitions,
+          long totalSegments,
+          long totalStorageBytes,
+          long recoveryDurationMs,
+          long truncatedBytesOnRecovery,
+          List<GroupStatusInfo> groups
+  ) implements Response {}
 }

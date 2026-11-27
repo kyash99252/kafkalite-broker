@@ -5,6 +5,9 @@ import com.kafkalite.core.storage.PartitionLog;
 import com.kafkalite.protocol.error.ErrorCode;
 import com.kafkalite.protocol.exception.BrokerException;
 import com.kafkalite.protocol.model.Record;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -25,8 +28,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public final class TopicManager implements Closeable {
   private static final Logger log = LoggerFactory.getLogger(TopicManager.class);
@@ -54,6 +55,34 @@ public final class TopicManager implements Closeable {
   private final Path metadataPath;
   private final Map<String, TopicState> topics = new ConcurrentHashMap<>();
   private final Object metadataLock = new Object();
+  private long recoveryDurationMs;
+
+  public record StorageStats(
+          int topicCount,
+          int totalPartitions,
+          long totalSegments,
+          long totalStorageBytes,
+          long recoveryDurationMs,
+          long truncatedBytesOnRecovery
+  ) {}
+
+  public StorageStats storageStats() {
+    int topicCount = topics.size();
+    int totalPartitions = 0;
+    long totalSegments = 0;
+    long totalBytes = 0;
+    long truncated = 0;
+    for (TopicState state : topics.values()) {
+      totalPartitions += state.partitions.size();
+      for (PartitionLog pLog : state.partitions) {
+        totalSegments += pLog.segmentCount();
+        totalBytes += pLog.totalSizeBytes();
+        truncated += pLog.truncatedBytesOnRecovery();
+      }
+    }
+    return new StorageStats(
+            topicCount, totalPartitions, totalSegments, totalBytes, recoveryDurationMs, truncated);
+  }
 
   private TopicManager(BrokerConfig config, Clock clock) {
     this.config = config;
@@ -69,6 +98,7 @@ public final class TopicManager implements Closeable {
   }
 
   private void recoverTopicInParallel() throws IOException {
+    long startNanos = System.nanoTime();
     if (!Files.exists(metadataPath)) {
       log.info("No existing {} found; starting with empty topic catalog", META_FILE);
       return;
@@ -144,6 +174,7 @@ public final class TopicManager implements Closeable {
     }
 
     log.info("Recovered {} topic(s) in parallel from {}", topics.size(), config.dataDir());
+    this.recoveryDurationMs = (System.nanoTime() - startNanos) / 1_000_000;
   }
 
   public TopicMetadata createTopic(String topicName, int partitionCount) throws IOException {
