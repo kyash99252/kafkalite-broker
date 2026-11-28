@@ -3,6 +3,7 @@ package com.kafkalite.core.network;
 import com.kafkalite.core.config.BrokerConfig;
 import com.kafkalite.core.group.GroupCoordinator;
 import com.kafkalite.core.group.OffsetManager;
+import com.kafkalite.core.observability.BrokerMetrics;
 import com.kafkalite.core.topic.TopicManager;
 import com.kafkalite.core.topic.TopicManager.ProduceResult;
 import com.kafkalite.core.topic.TopicManager.TopicMetadata;
@@ -41,6 +42,7 @@ public final class BrokerServer implements Closeable {
   private final TopicManager topicManager;
   private final GroupCoordinator groupCoordinator;
   private final OffsetManager offsetManager;
+  private final BrokerMetrics metrics;
 
   // Only close coordinators we instantiated ourselves; injected instances belong to the caller
   private final boolean ownsGroupManagers;
@@ -58,6 +60,7 @@ public final class BrokerServer implements Closeable {
         topicManager,
         new GroupCoordinator(topicManager, config.sessionTimeoutMs(), Clock.systemUTC()),
         OffsetManager.open(config.dataDir()),
+        null,
         true);
   }
 
@@ -66,7 +69,22 @@ public final class BrokerServer implements Closeable {
       TopicManager topicManager,
       GroupCoordinator groupCoordinator,
       OffsetManager offsetManager) {
-    this(config, topicManager, groupCoordinator, offsetManager, false);
+    this(config, topicManager, groupCoordinator, offsetManager, null, false);
+  }
+
+  public BrokerServer(
+      BrokerConfig config,
+      TopicManager topicManager,
+      GroupCoordinator groupCoordinator,
+      OffsetManager offsetManager,
+      BrokerMetrics metrics) {
+    this(
+        config,
+        topicManager,
+        groupCoordinator,
+        offsetManager,
+        Objects.requireNonNull(metrics, "metrics must not be null"),
+        false);
   }
 
   private BrokerServer(
@@ -74,12 +92,20 @@ public final class BrokerServer implements Closeable {
       TopicManager topicManager,
       GroupCoordinator groupCoordinator,
       OffsetManager offsetManager,
+      BrokerMetrics metrics,
       boolean ownsGroupManagers) {
     this.config = Objects.requireNonNull(config, "config must not be null");
     this.topicManager = Objects.requireNonNull(topicManager, "topicManager must not be null");
     this.groupCoordinator =
         Objects.requireNonNull(groupCoordinator, "groupCoordinator must not be null");
     this.offsetManager = Objects.requireNonNull(offsetManager, "offsetManager must not be null");
+    // Default to a live UTC-clock metrics aggregator unless tests inject one with a controlled
+    // Clock.
+    this.metrics =
+        metrics != null
+            ? metrics
+            : new BrokerMetrics(
+                this.topicManager, this.groupCoordinator, this.offsetManager, Clock.systemUTC());
     this.ownsGroupManagers = ownsGroupManagers;
   }
 
@@ -252,6 +278,7 @@ public final class BrokerServer implements Closeable {
         long committed = offsetManager.fetchOffset(groupId, tp);
         yield new Response.OffsetFetched(groupId, tp, committed);
       }
+      case Request.BrokerStatus() -> metrics.snapshot();
     };
   }
 

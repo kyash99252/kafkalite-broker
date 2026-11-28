@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
 
 public final class TopicManager implements Closeable {
   private static final Logger log = LoggerFactory.getLogger(TopicManager.class);
-  private static final Pattern VALID_TOPIC_NAME = Pattern.compile("^[a-zA-Z0-0._-]{1,128}$");
+  private static final Pattern VALID_TOPIC_NAME = Pattern.compile("^[a-zA-Z0-9._-]{1,128}$");
   private static final String META_FILE = "topics.meta";
   private static final String META_TMP_FILE = "topics.meta.tmp";
 

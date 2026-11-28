@@ -180,7 +180,7 @@ public class KafkaLiteConsumer implements Closeable {
     int remainingBytes = maxBytes;
 
     for (int i = 0; i < assigned.size() && remainingRecords > 0 && remainingBytes > 0; i++) {
-      TopicPartition tp = assigned.get((rrCursor + 1) % assigned.size());
+      TopicPartition tp = assigned.get((rrCursor + i) % assigned.size());
       long offset = positions.getOrDefault(tp, 0L);
       FetchResult fetched =
           fetch(tp.topic(), tp.partition(), offset, remainingRecords, remainingBytes);

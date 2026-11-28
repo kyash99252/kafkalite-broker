@@ -224,6 +224,7 @@ public final class WireCodec {
           frame.writeInt(g.memberCount());
           frame.writeInt(g.partitions().size());
           for (Response.ParitionLag p : g.partitions()) {
+            writeString(frame, p.topic());
             frame.writeInt(p.partition());
             frame.writeLong(p.highWatermark());
             frame.writeLong(p.committedOffset());

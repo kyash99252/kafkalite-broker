@@ -58,6 +58,10 @@ public final class AdminClient implements Closeable {
     };
   }
 
+  public Response.BrokerStatus brokerStatus() throws IOException {
+    return (Response.BrokerStatus) connection.send(new Request.BrokerStatus());
+  }
+
   private static void validateTopicName(String topic) {
     Objects.requireNonNull(topic, "topic must not be null");
     if (topic.isBlank()) {
